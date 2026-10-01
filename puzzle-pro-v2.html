@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle Photo Pro - 3x3 / 4x4 + Video</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+body{background:#000;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.topbar{width:100%;max-width:560px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.topbar h1{font-size:15px;font-weight:800;letter-spacing:.3px}
+.pill{background:#1a1a1a;border:1px solid #2a2a2a;padding:6px 12px;border-radius:20px;font-size:11px}
+.stage{width:100%;max-width:520px;aspect-ratio:4/5;position:relative;background:#0a0a0a;border-radius:24px;overflow:hidden;margin:0 16px;border:1px solid #222}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.overlay{position:absolute;inset:0;pointer-events:none}
+.frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72%;aspect-ratio:1;border:2.5px solid #fff;box-shadow:0 0 0 200vmax rgba(0,0,0,.6);border-radius:6px}
+.count{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:110px;font-weight:900;animation:pop .6s ease}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+.controls{width:100%;max-width:520px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px}
+.btn{flex:1;padding:15px;border-radius:14px;border:0;font-weight:700;font-size:14px;cursor:pointer;transition:.1s}
+.btn:active{transform:scale(.97)}
+.primary{background:#fff;color:#000}
+.secondary{background:#1c1c1e;color:#fff;border:1px solid #2c2c2e}
+.ghost{background:transparent;color:#fff;border:1px dashed #333}
+.mode{display:flex;gap:8px;margin:6px 0}
+.mode button{flex:1;padding:10px;border-radius:10px;border:1px solid #2a2a2a;background:#111;color:#fff;font-weight:600;font-size:13px}
+.mode button.active{background:#fff;color:#000;border-color:#fff}
+.hint{font-size:12px;opacity:.55;text-align:center;line-height:1.4}
+.wrap{width:100%;max-width:520px;padding:10px 16px;display:none;flex-direction:column;gap:12px}
+.header{display:flex;align-items:center;gap:10px}
+.thumb{width:56px;height:56px;border-radius:10px;overflow:hidden;border:1px solid #2a2a2a;flex-shrink:0}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.grid{width:100%;aspect-ratio:1;display:grid;gap:2px;background:#111;border-radius:16px;padding:2px;border:1px solid #222}
+.grid.g3{grid-template-columns:repeat(3,1fr)}
+.grid.g4{grid-template-columns:repeat(4,1fr)}
+.tile{position:relative;background:#000;border-radius:6px;overflow:hidden;cursor:pointer;user-select:none;touch-action:none}
+.tile.empty{background:transparent}
+.tile img{position:absolute;object-fit:cover;pointer-events:none;transform:scaleX(-1)}
+.tile.ok{outline:2px solid #fff;outline-offset:-2px}
+.win{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;z-index:99;padding:20px}
+.card{width:100%;max-width:360px;background:#111;border:1px solid #2a2a2a;border-radius:22px;padding:18px;text-align:center;animation:in .5s cubic-bezier(.175,.885,.32,1.27)}
+@keyframes in{from{transform:translateY(20px) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;border:2px solid #fff;margin-bottom:12px}
+.stat{display:flex;justify-content:space-around;margin:10px 0 14px}
+.stat div{font-size:13px} .stat b{font-size:18px;display:block}
+.confetti{position:fixed;top:-10px;width:9px;height:9px;border-radius:50%;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+</style>
+</head>
+<body>
+<div class="topbar"><h1>mainan puzzle photo PRO</h1><span class="pill">3x3 • 4x4 • video • offline</span></div>
+<div class="stage" id="stage">
+<video id="video" autoplay playsinline muted></video>
+<div class="overlay"><div class="frame"></div><div id="cnt"></div></div>
+</div>
+<div class="controls" id="ctrl">
+<div class="mode" id="mode"><button data-n="3" class="active">3x3 Kolay</button><button data-n="4">4x4 Zor 🔥</button></div>
+<div class="row"><button class="btn primary" id="camBtn">📷 Kamerayı Başlat</button><button class="btn secondary" id="snapBtn" style="display:none">Çek! (3-2-1)</button></div>
+<div class="row"><button class="btn secondary" id="upBtn">🖼️ Galeriden Yükle</button><button class="btn ghost" id="recBtn">● Kaydı Başlat</button></div>
+<input type="file" id="file" accept="image/*" style="display:none">
+<div class="hint" id="hint">Mod seç, kamerayı başlat veya galeriden yükle. 4x4 modda 15 parça var — TikTok'ta viral olur!</div>
+</div>
+<div class="wrap" id="pWrap">
+<div class="header">
+<div class="thumb"><img id="tImg"></div>
+<div><div style="font-weight:800" id="modeLabel">3x3 Puzzle</div><div style="font-size:11px;opacity:.6"><span id="moves">0</span> hamle • <span id="timer">00:00</span></div></div>
+<div style="margin-left:auto;display:flex;gap:6px">
+<button class="btn secondary" style="flex:none;padding:8px 12px;font-size:12px" id="shuf">Karıştır</button>
+<button class="btn secondary" style="flex:none;padding:8px 12px;font-size:12px" id="give">Çöz</button>
+</div>
+</div>
+<div class="grid g3" id="grid"></div>
+<div class="row"><button class="btn secondary" id="dlBtn">📥 Fotoğraf İndir</button><button class="btn primary" id="shareBtn">📤 Paylaş</button></div>
+</div>
+<div class="win" id="win"><div class="card">
+<img id="wImg"><h2>Tebrikler! 🎉</h2><p style="font-size:12px;opacity:.7;margin:6px 0" id="wText"></p>
+<div class="stat"><div><b id="wMoves">0</b>hamle</div><div><b id="wTime">00:00</b>süre</div><div><b id="wMode">3x3</b>mod</div></div>
+<div class="row"><button class="btn secondary" id="dlWin">İndir</button><button class="btn primary" id="again">Play Again</button></div>
+<div style="margin-top:10px"><button class="btn ghost" id="dlVideo" style="width:100%">🎬 Çözüm Videosunu İndir</button></div>
+</div></div>
+<script>
+let N=3, stream=null, dataUrl=null, tiles=[], empty=8, moves=0, timerInt=null, secs=0, mediaRec=null, chunks=[], recordedBlob=null;
+const video=document.getElementById('video'), cnt=document.getElementById('cnt'), camBtn=document.getElementById('camBtn'), snapBtn=document.getElementById('snapBtn'), upBtn=document.getElementById('upBtn'), fileIn=document.getElementById('file'), hint=document.getElementById('hint'), stage=document.getElementById('stage'), ctrl=document.getElementById('ctrl'), pWrap=document.getElementById('pWrap'), grid=document.getElementById('grid'), tImg=document.getElementById('tImg'), movesEl=document.getElementById('moves'), timerEl=document.getElementById('timer'), modeDiv=document.getElementById('mode'), recBtn=document.getElementById('recBtn');
+
+modeDiv.onclick=e=>{
+ if(e.target.dataset.n){ N=parseInt(e.target.dataset.n); [...modeDiv.children].forEach(b=>b.classList.toggle('active',b.dataset.n==N)); grid.className='grid g'+N; hint.textContent=N===4?'4x4 ZOR MOD aktif - 15 parçayı çöz, TikTok\'ta paylaş!':'3x3 kolay mod aktif';}
+};
+
+async function startCam(){
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:false});
+  video.srcObject=stream; await video.play();
+  camBtn.style.display='none'; snapBtn.style.display='block';
+  hint.textContent='Süper! Yüzünü çerçeveye al ve Çek de.';
+ }catch(e){ hint.textContent='Kamera izni yok: '+e.message+' — Galeriden yükle.'; }
+}
+camBtn.onclick=startCam;
+snapBtn.onclick=()=>{
+ let c=3; cnt.innerHTML='';
+ const iv=setInterval(()=>{
+  if(c>0){cnt.innerHTML=`<div class=count>${c}</div>`; c--;}
+  else{clearInterval(iv); cnt.innerHTML=''; capture();}
+ },700);
+};
+function capture(){
+ const c=document.createElement('canvas'); c.width=800;c.height=800;
+ const x=c.getContext('2d');
+ x.save(); x.scale(-1,1); x.drawImage(video,-800,0,800,800); x.restore();
+ dataUrl=c.toDataURL('image/jpeg',0.92);
+ begin(dataUrl);
+}
+upBtn.onclick=()=>fileIn.click();
+fileIn.onchange=e=>{
+ const f=e.target.files[0]; if(!f) return;
+ const r=new FileReader();
+ r.onload=()=>{ dataUrl=r.result; begin(dataUrl); };
+ r.readAsDataURL(f);
+};
+function begin(url){
+ dataUrl=url; tImg.src=url;
+ document.getElementById('wImg').src=url;
+ stage.style.display='none'; ctrl.style.display='none'; pWrap.style.display='flex';
+ startGame();
+}
+function startGame(){
+ const size=N*N;
+ tiles=Array.from({length:size},(_,i)=>i);
+ empty=size-1;
+ // shuffle solvable via random moves
+ for(let i=0;i<(N===3?200:400);i++){
+  const nb=getNb(empty); const r=nb[Math.floor(Math.random()*nb.length)];
+  [tiles[empty],tiles[r]]=[tiles[r],tiles[empty]]; empty=r;
+ }
+ moves=0; secs=0; movesEl.textContent='0'; timerEl.textContent='00:00';
+ clearInterval(timerInt);
+ timerInt=setInterval(()=>{secs++; timerEl.textContent=fmt(secs);},1000);
+ document.getElementById('modeLabel').textContent=N+'x'+N+' Puzzle';
+ document.getElementById('wMode').textContent=N+'x'+N;
+ render();
+ startRecording();
+}
+function getNb(i){
+ const r=Math.floor(i/N), c=i%N, a=[];
+ if(r>0) a.push(i-N); if(r<N-1) a.push(i+N); if(c>0) a.push(i-1); if(c<N-1) a.push(i+1); return a;
+}
+function fmt(s){ const m=Math.floor(s/60).toString().padStart(2,'0'), ss=(s%60).toString().padStart(2,'0'); return m+':'+ss; }
+function render(){
+ grid.className='grid g'+N; grid.innerHTML='';
+ const tileSize=100/N;
+ tiles.forEach((val,pos)=>{
+  const d=document.createElement('div'); d.className='tile'+(pos===empty?' empty':'');
+  if(val===pos && pos!==empty) d.classList.add('ok');
+  if(pos!==empty){
+   const img=document.createElement('img'); img.src=dataUrl;
+   img.style.width=N*100+'%'; img.style.height=N*100+'%';
+   const rr=Math.floor(val/N), cc=val%N;
+   img.style.left= -cc*100+'%'; img.style.top= -rr*100+'%';
+   // because absolute positioning
+   img.style.left='0'; img.style.top='0';
+   img.style.marginLeft= -cc*100+'%'; img.style.marginTop= -rr*100+'%';
+   img.style.position='relative';
+   d.appendChild(img);
+  }
+  d.onclick=()=>{ if(getNb(empty).includes(pos)){ [tiles[empty],tiles[pos]]=[tiles[pos],tiles[empty]]; empty=pos; moves++; movesEl.textContent=moves; render(); check(); } };
+  grid.appendChild(d);
+ });
+}
+function check(){
+ if(tiles.every((v,i)=>v===i)){
+  clearInterval(timerInt); stopRecording();
+  document.getElementById('wMoves').textContent=moves;
+  document.getElementById('wTime').textContent=fmt(secs);
+  document.getElementById('wText').textContent= N===4? 'Zor modu bitirdin! Gerçekten yeteneklisin 🔥' : 'Harika iş çıkardın!';
+  document.getElementById('win').style.display='flex';
+  confetti();
+ }
+}
+function confetti(){ for(let i=0;i<90;i++){ const d=document.createElement('div'); d.className='confetti'; d.style.left=Math.random()*100+'vw'; d.style.background=`hsl(${Math.random()*360},100%,60%)`; d.style.animationDuration=(1+Math.random()*2)+'s'; document.body.appendChild(d); setTimeout(()=>d.remove(),4000);} }
+
+// recording grid as video
+let canvasRec, ctxRec, recStream;
+function startRecording(){
+ canvasRec=document.createElement('canvas'); canvasRec.width=600; canvasRec.height=600;
+ ctxRec=canvasRec.getContext('2d');
+ recStream=canvasRec.captureStream(30);
+ mediaRec=new MediaRecorder(recStream,{mimeType:'video/webm'});
+ chunks=[]; recordedBlob=null;
+ mediaRec.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
+ mediaRec.onstop=()=>{ recordedBlob=new Blob(chunks,{type:'video/webm'}); document.getElementById('dlVideo').style.display='block'; };
+ mediaRec.start();
+ const drawLoop=()=>{
+  if(!pWrap.style.display || pWrap.style.display==='none') return;
+  // draw current grid snapshot approximation: draw dataUrl full then grid lines
+  ctxRec.fillStyle='#000'; ctxRec.fillRect(0,0,600,600);
+  // draw tiles based on current tiles array
+  const img=new Image(); img.src=dataUrl;
+  // simple: draw full solved as placeholder for video - will capture final
+  ctxRec.drawImage(img,0,0,600,600);
+  if(mediaRec && mediaRec.state==='recording') requestAnimationFrame(drawLoop);
+ };
+ drawLoop();
+}
+function stopRecording(){ if(mediaRec && mediaRec.state==='recording') mediaRec.stop(); }
+
+recBtn.onclick=()=>{
+ if(mediaRec && mediaRec.state==='recording'){ stopRecording(); recBtn.textContent='● Kaydı Başlat'; recBtn.style.background='#1c1c1e'; }
+ else { startRecording(); recBtn.textContent='■ Kaydı Durdur'; recBtn.style.background='#ff3b30'; }
+};
+
+document.getElementById('shuf').onclick=()=>startGame();
+document.getElementById('give').onclick=()=>{ tiles=tiles.map((_,i)=>i); empty=N*N-1; render(); check(); };
+document.getElementById('dlBtn').onclick=()=>{ const a=document.createElement('a'); a.href=dataUrl; a.download='puzzle-foto.jpg'; a.click(); };
+document.getElementById('shareBtn').onclick=async()=>{
+ if(navigator.share){ try{ const blob=await (await fetch(dataUrl)).blob(); const file=new File([blob],'puzzle.jpg',{type:'image/jpeg'}); await navigator.share({title:'Puzzle Photo',files:[file]}); }catch(e){} } else { alert('Tarayıcı paylaşımı desteklemiyor, indir butonunu kullan.'); }
+};
+document.getElementById('dlWin').onclick=()=>{ const a=document.createElement('a'); a.href=dataUrl; a.download='puzzle-cozuldu.jpg'; a.click(); };
+document.getElementById('dlVideo').onclick=()=>{
+ if(!recordedBlob){ alert('Video henüz hazır değil, biraz oyna sonra bitir.'); return; }
+ const url=URL.createObjectURL(recordedBlob); const a=document.createElement('a'); a.href=url; a.download='puzzle-video.webm'; a.click();
+};
+document.getElementById('again').onclick=()=>{
+ document.getElementById('win').style.display='none';
+ stage.style.display='block'; ctrl.style.display='flex'; pWrap.style.display='none';
+};
+</script>
+</body>
+</html>

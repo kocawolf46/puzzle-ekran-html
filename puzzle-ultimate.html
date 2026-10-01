@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Puzzle Photo Ultimate</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+body{background:#000;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+.top{width:100%;max-width:560px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.top h1{font-size:14px;font-weight:900;letter-spacing:.5px}
+.badge{font-size:10px;background:#fff;color:#000;padding:5px 10px;border-radius:20px;font-weight:800}
+.stage{width:100%;max-width:500px;aspect-ratio:4/5;position:relative;background:#0f0f0f;border-radius:20px;overflow:hidden;border:1px solid #222;margin:0 16px}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70%;aspect-ratio:1;border:2px solid #fff;box-shadow:0 0 0 999px rgba(0,0,0,.6);border-radius:8px}
+.count{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:100px;font-weight:900;animation:pop .5s ease}
+@keyframes pop{0%{scale:.2;opacity:0}100%{scale:1;opacity:1}}
+.panel{width:100%;max-width:500px;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px}
+.btn{flex:1;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:13px;cursor:pointer}
+.btn:active{scale:.98}
+.w{background:#fff;color:#000}.d{background:#1c1c1e;color:#fff;border:1px solid #2a2a2a}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:4px 0}
+.filters button{flex-shrink:0;padding:8px 14px;border-radius:20px;border:1px solid #2a2a2a;background:#111;color:#fff;font-size:12px;font-weight:600}
+.filters button.on{background:#fff;color:#000}
+.input{width:100%;padding:12px;border-radius:10px;border:1px solid #2a2a2a;background:#111;color:#fff;font-size:14px}
+.modes{display:flex;gap:8px}
+.modes button{flex:1;padding:10px;border-radius:10px;border:1px solid #2a2a2a;background:#111;color:#fff;font-weight:700;font-size:12px}
+.modes button.on{background:#fff;color:#000}
+.grid{width:100%;aspect-ratio:1;display:grid;gap:2px;background:#111;border-radius:14px;padding:2px;border:1px solid #222}
+.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.tile{position:relative;overflow:hidden;background:#000;border-radius:5px;cursor:pointer}
+.tile.empty{background:transparent}
+.tile img{position:absolute;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.tile.ok{outline:2px solid #fff;outline-offset:-2px}
+.win{position:fixed;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(16px);display:none;align-items:center;justify-content:center;z-index:99;padding:16px}
+.card{width:100%;max-width:380px;background:#151515;border:1px solid #2a2a2a;border-radius:20px;padding:16px;text-align:center}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;border:2px solid #fff;margin-bottom:10px}
+.hint{font-size:11px;opacity:.5;text-align:center}
+canvas{display:none}
+</style>
+</head>
+<body>
+<div class="top"><h1>PUZZLE PHOTO ULTIMATE</h1><div class="badge">TIKTOK READY</div></div>
+<div class="stage" id="stage"><video id="v" autoplay playsinline muted></video><div class="frame"></div><div id="c"></div></div>
+<canvas id="main"></canvas>
+<div class="panel" id="p1">
+<div class="modes"><button data-n="3" class="on">3x3 Kolay</button><button data-n="4">4x4 Zor 🔥</button></div>
+<div class="filters" id="filts">
+<button data-f="none" class="on">Orijinal</button><button data-f="grayscale(1)">S/B</button><button data-f="sepia(1)">Vintage</button><button data-f="contrast(1.3) saturate(1.5)">Vivid</button><button data-f="blur(0.5px) brightness(1.2)">Soft</button>
+</div>
+<input id="nameIn" class="input" placeholder="İsmini yaz (örn: Ali) - fotoğrafın altına eklenir">
+<div class="row"><button class="btn w" id="cam">📷 Kamerayı Başlat</button><button class="btn d" id="snap" style="display:none">ÇEK! 3-2-1</button></div>
+<div class="row"><button class="btn d" id="up">🖼️ Galeriden</button><button class="btn d" id="rec">● REC</button></div>
+<div class="hint" id="hint">Mod + filtre + isim seç, çek, puzzle'ı çöz. Video otomatik kaydediliyor.</div>
+<input type="file" id="file" accept="image/*" hidden>
+</div>
+<div class="panel" id="p2" style="display:none">
+<div class="row" style="align-items:center"><div style="font-weight:800" id="mlab">3x3</div><div style="margin-left:auto;font-size:12px;opacity:.6"><span id="mv">0</span> hamle • <span id="tm">00:00</span></div></div>
+<div class="grid g3" id="grid"></div>
+<div class="row"><button class="btn d" id="shuf">Karıştır</button><button class="btn w" id="save">📥 Kaydet</button></div>
+</div>
+<div class="win" id="win"><div class="card"><img id="wimg"><h3 style="margin:6px 0">Bitti! 🎉</h3><p id="wt" style="font-size:12px;opacity:.7"></p><div class="row" style="margin-top:12px"><button class="btn d" id="dl">İndir</button><button class="btn w" id="again">Yeniden</button></div><button class="btn d" id="dlv" style="width:100%;margin-top:8px">🎬 Video İndir (TikTok için)</button></div></div>
+<script>
+let N=3,filter='none',nameTxt='',stream,urlData,tiles=[],empty=0,moves=0,secs=0,tInt,rec,recChunks=[],recBlob,canvasRec,recStream;
+const v=document.getElementById('v'), main=document.getElementById('main'), stage=document.getElementById('stage'), cEl=document.getElementById('c'), cam=document.getElementById('cam'), snap=document.getElementById('snap'), up=document.getElementById('up'), file=document.getElementById('file'), hint=document.getElementById('hint'), p1=document.getElementById('p1'), p2=document.getElementById('p2'), grid=document.getElementById('grid'), mv=document.getElementById('mv'), tm=document.getElementById('tm'), nameIn=document.getElementById('nameIn'), recBtn=document.getElementById('rec');
+document.querySelector('.modes').onclick=e=>{if(e.target.dataset.n){N=+e.target.dataset.n;document.querySelectorAll('.modes button').forEach(b=>b.classList.toggle('on',b.dataset.n==N));grid.className='grid g'+N;}};
+document.getElementById('filts').onclick=e=>{if(e.target.dataset.f!==undefined){filter=e.target.dataset.f;document.querySelectorAll('#filts button').forEach(b=>b.classList.toggle('on',b.dataset.f==filter));v.style.filter=filter;}};
+nameIn.oninput=e=>nameTxt=e.target.value;
+async function startCam(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280}},audio:false});v.srcObject=stream;await v.play();cam.style.display='none';snap.style.display='block';hint.textContent='Çerçeveye ortala ve ÇEK!';}catch(e){hint.textContent='Kamera yok: '+e.message}};
+cam.onclick=startCam;
+snap.onclick=()=>{let k=3;cEl.innerHTML='';const iv=setInterval(()=>{if(k>0){cEl.innerHTML=`<div class=count>${k}</div>`;k--}else{clearInterval(iv);cEl.innerHTML='';cap();}},700);};
+function cap(){const can=document.createElement('canvas');can.width=800;can.height=800;const x=can.getContext('2d');x.filter=filter;x.save();x.scale(-1,1);x.drawImage(v,-800,0,800,800);x.restore();if(nameTxt){x.filter='none';x.fillStyle='white';x.font='bold 36px sans-serif';x.textAlign='center';x.fillText(nameTxt,400,760);x.strokeStyle='black';x.lineWidth=4;x.strokeText(nameTxt,400,760);x.fillText(nameTxt,400,760);}urlData=can.toDataURL('image/jpeg',.92);begin();};
+file.onchange=()=>{}; up.onclick=()=>file.click();
+file.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{const img=new Image();img.onload=()=>{const can=document.createElement('canvas');can.width=800;can.height=800;const x=can.getContext('2d');x.filter=filter;const s=Math.min(img.width,img.height);x.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,800,800);if(nameTxt){x.filter='none';x.fillStyle='white';x.font='bold 36px sans-serif';x.textAlign='center';x.fillText(nameTxt,400,760);x.strokeStyle='black';x.lineWidth=4;x.strokeText(nameTxt,400,760);x.fillText(nameTxt,400,760);}urlData=can.toDataURL('image/jpeg',.92);begin();};img.src=fr.result;};fr.readAsDataURL(f);});
+function begin(){stage.style.display='none';p1.style.display='none';p2.style.display='flex';document.getElementById('mlab').textContent=N+'x'+N+' • '+(filter==='none'?'Orijinal':filter);init();startRec();}
+function init(){const sz=N*N;tiles=[...Array(sz).keys()];empty=sz-1;for(let i=0;i<(N===3?250:500);i++){const nb=nbOf(empty);const r=nb[Math.floor(Math.random()*nb.length)];[tiles[empty],tiles[r]]=[tiles[r],tiles[empty]];empty=r;}moves=0;secs=0;mv.textContent='0';tm.textContent='00:00';clearInterval(tInt);tInt=setInterval(()=>{secs++;tm.textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;},1000);draw();}
+function nbOf(i){const r=Math.floor(i/N),c=i%N,a=[];if(r>0)a.push(i-N);if(r<N-1)a.push(i+N);if(c>0)a.push(i-1);if(c<N-1)a.push(i+1);return a;}
+function draw(){grid.className='grid g'+N;grid.innerHTML='';tiles.forEach((val,pos)=>{const d=document.createElement('div');d.className='tile'+(pos===empty?' empty':'');if(val===pos&&pos!==empty)d.classList.add('ok');if(pos!==empty){const im=document.createElement('img');im.src=urlData;const rr=Math.floor(val/N),cc=val%N;im.style.width=N*100+'%';im.style.height=N*100+'%';im.style.left=-cc*100+'%';im.style.top=-rr*100+'%';im.style.position='relative';im.style.marginLeft=-cc*100+'%';im.style.marginTop=-rr*100+'%';d.appendChild(im);}d.onclick=()=>{if(nbOf(empty).includes(pos)){[tiles[empty],tiles[pos]]=[tiles[pos],tiles[empty]];empty=pos;moves++;mv.textContent=moves;draw();chk();}};grid.appendChild(d);});}
+function chk(){if(tiles.every((v,i)=>v===i)){clearInterval(tInt);stopRec();document.getElementById('wimg').src=urlData;document.getElementById('wt').textContent=`${N}x${N} modu ${moves} hamlede ${tm.textContent} sürede bitti! ${nameTxt? '— '+nameTxt:''}`;document.getElementById('win').style.display='flex';for(let i=0;i<80;i++){const dd=document.createElement('div');dd.style.position='fixed';dd.style.top='-10px';dd.style.left=Math.random()*100+'vw';dd.style.width='8px';dd.style.height='8px';dd.style.borderRadius='50%';dd.style.background=`hsl(${Math.random()*360},100%,60%)`;dd.style.animation=`fall ${1+Math.random()*2}s linear forwards`;dd.style.pointerEvents='none';document.body.appendChild(dd);setTimeout(()=>dd.remove(),4000);} }}
+document.getElementById('shuf').onclick=init;
+document.getElementById('save').onclick=()=>{const a=document.createElement('a');a.href=urlData;a.download='puzzle-'+(nameTxt||'foto')+'.jpg';a.click();};
+document.getElementById('again').onclick=()=>{document.getElementById('win').style.display='none';stage.style.display='block';p1.style.display='flex';p2.style.display='none';};
+document.getElementById('dl').onclick=()=>{const a=document.createElement('a');a.href=urlData;a.download='puzzle-bitti.jpg';a.click();};
+function startRec(){canvasRec=document.createElement('canvas');canvasRec.width=600;canvasRec.height=800;const ctx=canvasRec.getContext('2d');recStream=canvasRec.captureStream(30);rec=new MediaRecorder(recStream,{mimeType:'video/webm'});recChunks=[];rec.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data);};rec.onstop=()=>{recBlob=new Blob(recChunks,{type:'video/webm'});};rec.start();(function loop(){if(p2.style.display==='none')return;ctx.fillStyle='#000';ctx.fillRect(0,0,600,800);const im=new Image();im.src=urlData;ctx.drawImage(im,0,0,600,600);ctx.fillStyle='white';ctx.font='bold 18px sans-serif';ctx.fillText(`${N}x${N} • ${mv.textContent} hamle • ${tm.textContent}`,20,650);if(nameTxt){ctx.font='bold 28px sans-serif';ctx.fillText(nameTxt,20,700);}if(rec&&rec.state==='recording')requestAnimationFrame(loop);})();}
+function stopRec(){if(rec&&rec.state==='recording')rec.stop();}
+recBtn.onclick=()=>{if(rec&&rec.state==='recording'){stopRec();recBtn.textContent='● REC';}else{startRec();recBtn.textContent='■ DUR';}};
+document.getElementById('dlv').onclick=()=>{if(!recBlob){alert('Video hazırlanıyor, biraz bekle');return;}const u=URL.createObjectURL(recBlob);const a=document.createElement('a');a.href=u;a.download=`puzzle-${N}x${N}-${nameTxt||'video'}.webm`;a.click();};
+</script>
+<style>@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}</style>
+</body>
+</html>
